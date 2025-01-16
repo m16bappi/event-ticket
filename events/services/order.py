@@ -2,7 +2,7 @@ from events.models import SSLCommerzDatum
 from events.models.ticket import Ticket, TicketStatus
 from events.models.order import Order, PaymentMethodChoice, OrderStatusChoice
 
-from .ssl_commerz import SSLCommerzPayment
+from .payment import SSLCommerzPayment
 
 
 class OrderService:
