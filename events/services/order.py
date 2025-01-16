@@ -1,4 +1,5 @@
-from events.models import Ticket, SSLCommerzDatum
+from events.models import SSLCommerzDatum
+from events.models.ticket import Ticket, TicketStatus
 from events.models.order import Order, PaymentMethodChoice, OrderStatusChoice
 
 from .ssl_commerz import SSLCommerzPayment
@@ -25,6 +26,8 @@ class OrderService:
 
         if data.get("status") == "VALID":
             self.order.status = OrderStatusChoice.CONFIRMED
+            self.order.ticket.status = TicketStatus.CONFIRMED
+            self.order.ticket.save(update_fields=["status"])
             self.order.save(update_fields=["status"])
             self.create_payment_datum(data=data)
         else:
@@ -32,10 +35,14 @@ class OrderService:
 
     def reject(self):
         self.order.status = OrderStatusChoice.FAILED
+        self.order.ticket.status = TicketStatus.CANCELLED
+        self.order.ticket.save(update_fields=["status"])
         self.order.save(update_fields=["status"])
 
     def cancel(self):
         self.order.status = OrderStatusChoice.CANCELLED
+        self.order.ticket.status = TicketStatus.CANCELLED
+        self.order.ticket.save(update_fields=["status"])
         self.order.save(update_fields=["status"])
 
     def get_payment_service(self):
