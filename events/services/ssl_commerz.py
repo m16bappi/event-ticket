@@ -1,6 +1,7 @@
-import os
 import requests
 from typing import Any, Dict
+
+from config.env import ENV
 from events.models import Ticket
 
 
@@ -8,8 +9,8 @@ class SSLCommerzPayment:
     def __init__(self):
         self.session_url = f"{self.base_url}/gwprocess/v4/api.php"
         self.validation_url = f"{self.base_url}/validator/api/validationserverAPI.php"
-        self.store_id = os.getenv("SSLCOMMERZ_STORE_ID")
-        self.store_passwd = os.getenv("SSLCOMMERZ_PASSWD")
+        self.store_id = ENV.SSLCOMMERZ_STORE_ID
+        self.store_passwd = ENV.SSLCOMMERZ_STORE_PASSWORD
         self.default_params = {
             "store_id": self.store_id,
             "store_passwd": self.store_passwd,
@@ -17,23 +18,24 @@ class SSLCommerzPayment:
 
     @property
     def base_url(self):
-        is_live = os.getenv("SSLCOMMERZ_LIVE") == "true"
-        env = "securepay" if is_live else "sandbox"
+        is_sandbox = ENV.SSLCOMMERZ_IS_SANDBOX
+        env = "sandbox" if is_sandbox else "securepay"
         return f"https://{env}.sslcommerz.com"
 
     def init(self, ticket: Ticket) -> Dict[str, Any]:
         """
         Initialize a payment session.
         """
+        trans_id = ticket.order.id
         payload = {
             **self.default_params,
             "total_amount": ticket.event.ticket_price,
             "currency": "BDT",
-            "tran_id": ticket.order.id,
-            "success_url": "",
-            "fail_url": "",
-            "cancel_url": "",
-            "ipn_url": "",
+            "tran_id": trans_id,
+            "success_url": ENV.SSLCOMMERZ_SUCCESS_CALLBACK,
+            "fail_url": ENV.SSLCOMMERZ_FAILED_CALLBACK,
+            "cancel_url": ENV.SSLCOMMERZ_FAILED_CALLBACK,
+            "ipn_url": ENV.SSLCOMMERZ_IPN_CALLBACK.format(id=trans_id),
             "cus_name": ticket.name,
             "cus_email": ticket.email,
             "cus_phone": ticket,
@@ -69,18 +71,3 @@ class SSLCommerzPayment:
             return response.json()
 
         raise Exception(f"Payment validation failed, status: {response.status_code}")
-
-    @staticmethod
-    def parse_body(request) -> Dict[str, Any]:
-        """
-        Parse incoming request body for payment response.
-        """
-        content_type = request.headers.get("Content-Type")
-
-        if content_type == "application/json":
-            return request.json
-
-        if content_type == "application/x-www-form-urlencoded":
-            return {k: v for k, v in request.form.items()}
-
-        raise ValueError("Unsupported content type")
